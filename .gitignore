@@ -1,0 +1,11 @@
+# Local agent work records
+.workspaces/
+
+# Terraform state and local credentials
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.tfvars
+!terraform/terraform.tfvars.example
+terraform/crash.log
+terraform/crash.*.log

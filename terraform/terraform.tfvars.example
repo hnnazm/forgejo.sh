@@ -1,0 +1,9 @@
+# Copy to terraform.tfvars, replace every placeholder, and keep the copy private.
+cloudflare_api_token  = "CHANGE-ME-scoped-token"
+cloudflare_account_id = "CHANGE-ME-account-id"
+cloudflare_zone_id    = "CHANGE-ME-zone-id"
+forgejo_hostname      = "forgejo.example.com"
+
+# Optional defaults:
+# tunnel_name         = "forgejo"
+# forgejo_service_url = "http://forgejo:3000"
