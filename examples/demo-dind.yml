@@ -1,0 +1,13 @@
+name: verify-dind
+on: [workflow_dispatch]
+jobs:
+  nested-docker:
+    runs-on: docker
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect the Docker-compatible Podman API
+        run: docker info
+      - name: Build an image through the runner socket
+        run: |
+          printf 'FROM busybox\nCMD ["true"]\n' > Dockerfile
+          docker build -t forgejo-dind-smoke:${{ forgejo.run_number }} .

@@ -1,0 +1,82 @@
+---
+- name: Check the persisted identity secret for runner {{ runner_index }}
+  ansible.builtin.stat:
+    path: "{{ runners_root }}/tokens/runner-{{ runner_index }}.secret"
+  register: forgejo_runners_secret_file
+
+- name: Persist an identity secret for runner {{ runner_index }}
+  ansible.builtin.copy:
+    dest: "{{ runners_root }}/tokens/runner-{{ runner_index }}.secret"
+    content: "{{ lookup('password', '/dev/null chars=digits,abcdef length=40') }}"
+    owner: "{{ forgejo_user }}"
+    group: "{{ forgejo_group }}"
+    mode: "0600"
+  when: not forgejo_runners_secret_file.stat.exists
+  no_log: true
+
+- name: Read the identity secret for runner {{ runner_index }}
+  ansible.builtin.slurp:
+    src: "{{ runners_root }}/tokens/runner-{{ runner_index }}.secret"
+  register: forgejo_runners_secret
+  no_log: true
+
+- name: Register Forgejo runner once {{ runner_index }}
+  ansible.builtin.command:
+    argv:
+      - podman
+      - exec
+      - forgejo
+      - forgejo
+      - forgejo-cli
+      - actions
+      - register
+      - --name
+      - "forgejo-runner-{{ runner_index }}"
+      - --secret
+      - "{{ forgejo_runners_secret.content | b64decode | trim }}"
+  when: not forgejo_runners_secret_file.stat.exists
+  changed_when: true
+  no_log: true
+
+- name: Check the offline runner identity file for runner {{ runner_index }}
+  ansible.builtin.stat:
+    path: "{{ runners_root }}/runner-{{ runner_index }}/.runner"
+  register: forgejo_runners_identity_file
+
+- name: Create the offline runner identity file for runner {{ runner_index }}
+  ansible.builtin.command:
+    argv:
+      - podman
+      - run
+      - --rm
+      - --user
+      - "{{ runner_container_uid }}:{{ runner_container_uid }}"
+      - -v
+      - "{{ runners_root }}/runner-{{ runner_index }}:/data:Z"
+      - "code.forgejo.org/forgejo/runner:{{ runner_version }}"
+      - forgejo-runner
+      - create-runner-file
+      - --instance
+      - "{{ forgejo_instance_url }}"
+      - --name
+      - "forgejo-runner-{{ runner_index }}"
+      - --secret
+      - "{{ forgejo_runners_secret.content | b64decode | trim }}"
+  when: not forgejo_runners_identity_file.stat.exists
+  changed_when: true
+  no_log: true
+
+- name: Render runner configuration for runner {{ runner_index }}
+  ansible.builtin.template:
+    src: config.yml.j2
+    dest: "{{ runners_root }}/runner-{{ runner_index }}/config.yml"
+    owner: "{{ runner_container_uid }}"
+    group: "{{ forgejo_group }}"
+    mode: "0640"
+
+- name: Render runner Quadlet for runner {{ runner_index }}
+  ansible.builtin.template:
+    src: runner.container.j2
+    dest: "/etc/containers/systemd/forgejo-runner-{{ runner_index }}.container"
+    mode: "0644"
+  notify: Reload runner Quadlets

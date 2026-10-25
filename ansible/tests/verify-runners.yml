@@ -1,0 +1,24 @@
+---
+- name: Verify Forgejo runners
+  hosts: all
+  become: true
+  vars_files:
+    - "{{ playbook_dir }}/../group_vars/all/main.yml"
+  tasks:
+    - name: Apply runners under test
+      ansible.builtin.import_role:
+        name: forgejo_runners
+
+    - name: Gather runner container state
+      containers.podman.podman_container_info:
+        name: "forgejo-runner-{{ item }}"
+      loop: "{{ range(1, runner_count + 1) | list }}"
+      register: runner_containers
+
+    - name: Assert exactly two runner containers are running
+      ansible.builtin.assert:
+        that:
+          - runner_count == 2
+          - item.containers | length == 1
+          - item.containers[0].State.Status == 'running'
+      loop: "{{ runner_containers.results }}"

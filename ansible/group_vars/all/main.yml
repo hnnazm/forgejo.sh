@@ -18,3 +18,10 @@ forgejo_admin_username: forgejo
 forgejo_admin_email: admin@example.com
 forgejo_db_name: forgejo
 forgejo_db_user: forgejo
+
+runner_count: 2
+runner_concurrent: 1
+runner_labels: docker
+runner_privileged: true
+runner_container_uid: "1000"
+default_ci_image: node:20-bookworm

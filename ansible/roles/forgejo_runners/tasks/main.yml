@@ -1,0 +1,25 @@
+---
+- name: Create runner data directories writable by the runner image
+  ansible.builtin.file:
+    path: "{{ runners_root }}/runner-{{ item }}"
+    state: directory
+    owner: "{{ runner_container_uid }}"
+    group: "{{ forgejo_group }}"
+    mode: "0775"
+  loop: "{{ range(1, runner_count + 1) | list }}"
+
+- name: Configure each Forgejo runner
+  ansible.builtin.include_tasks: runner.yml
+  loop: "{{ range(1, runner_count + 1) | list }}"
+  loop_control:
+    loop_var: runner_index
+
+- name: Flush runner Quadlet changes before starting services
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start exactly two runner services
+  ansible.builtin.systemd:
+    name: "forgejo-runner-{{ item }}.service"
+    enabled: true
+    state: started
+  loop: "{{ range(1, runner_count + 1) | list }}"

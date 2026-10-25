@@ -1,0 +1,20 @@
+[Unit]
+Description=Forgejo Actions runner {{ runner_index }}
+After=forgejo.service
+Requires=forgejo.service
+
+[Container]
+Image=code.forgejo.org/forgejo/runner:{{ runner_version }}
+ContainerName=forgejo-runner-{{ runner_index }}
+Network={{ podman_network }}
+Volume={{ runners_root }}/runner-{{ runner_index }}:/data:Z
+Volume=/run/podman/podman.sock:/var/run/docker.sock
+User={{ runner_container_uid }}:{{ runner_container_uid }}
+GroupAdd=0
+Exec=forgejo-runner daemon --config /data/config.yml
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

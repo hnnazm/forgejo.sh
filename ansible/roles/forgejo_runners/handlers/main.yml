@@ -1,0 +1,7 @@
+---
+- name: Reload runner Quadlets
+  ansible.builtin.systemd:
+    name: "forgejo-runner-{{ item }}.service"
+    daemon_reload: true
+    state: restarted
+  loop: "{{ range(1, runner_count + 1) | list }}"

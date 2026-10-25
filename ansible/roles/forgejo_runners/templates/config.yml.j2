@@ -1,0 +1,17 @@
+log:
+  level: info
+runner:
+  file: .runner
+  capacity: {{ runner_concurrent }}
+  timeout: 3h
+  labels:
+    - "{{ runner_labels }}:docker://{{ default_ci_image }}"
+cache:
+  enabled: true
+container:
+  network: "{{ podman_network }}"
+  privileged: {{ runner_privileged | string | lower }}
+  docker_host: unix:///var/run/docker.sock
+  valid_volumes:
+    - /var/run/docker.sock
+  force_pull: false

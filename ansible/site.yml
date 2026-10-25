@@ -17,4 +17,5 @@
     - prereqs
     - postgres
     - forgejo
+    - forgejo_runners
     - cloudflared
