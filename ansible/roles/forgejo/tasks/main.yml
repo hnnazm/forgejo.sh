@@ -1,0 +1,41 @@
+---
+- name: Render the Forgejo Quadlet
+  ansible.builtin.template:
+    src: forgejo.container.j2
+    dest: /etc/containers/systemd/forgejo.container
+    mode: "0600"
+  no_log: true
+  notify: Reload Forgejo Quadlet
+
+- name: Flush Forgejo Quadlet changes before starting service
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start Forgejo
+  ansible.builtin.systemd:
+    name: forgejo.service
+    enabled: true
+    state: started
+
+- name: Wait for Forgejo health endpoint
+  containers.podman.podman_container_exec:
+    name: forgejo
+    command: wget -qO- http://localhost:3000/api/healthz
+  register: forgejo_health
+  retries: 40
+  delay: 10
+  until: forgejo_health.rc == 0
+  changed_when: false
+
+- name: Create the initial Forgejo administrator
+  containers.podman.podman_container_exec:
+    name: forgejo
+    command: >-
+      forgejo admin user create --admin --username {{ forgejo_admin_username }}
+      --email {{ forgejo_admin_email }} --password {{ vault_forgejo_admin_password }}
+      --must-change-password=false
+  register: forgejo_admin
+  changed_when: "'successfully created' in forgejo_admin.stdout"
+  failed_when:
+    - forgejo_admin.rc != 0
+    - "'already exists' not in (forgejo_admin.stdout + forgejo_admin.stderr)"
+  no_log: true

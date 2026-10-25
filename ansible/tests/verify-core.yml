@@ -1,0 +1,48 @@
+---
+- name: Verify core Forgejo services
+  hosts: all
+  become: true
+  vars_files:
+    - "{{ playbook_dir }}/../group_vars/all/main.yml"
+  tasks:
+    - name: Apply the core services under test
+      ansible.builtin.import_role:
+        name: postgres
+
+    - name: Apply the Forgejo service under test
+      ansible.builtin.import_role:
+        name: forgejo
+
+    - name: Apply the Cloudflare connector under test
+      ansible.builtin.import_role:
+        name: cloudflared
+
+    - name: Check the Forgejo health endpoint from its container
+      containers.podman.podman_container_exec:
+        name: forgejo
+        command: wget -qO- http://localhost:3000/api/healthz
+      register: forgejo_health
+      changed_when: false
+
+    - name: Assert Forgejo is healthy
+      ansible.builtin.assert:
+        that:
+          - forgejo_health.rc == 0
+
+    - name: Gather core container state
+      containers.podman.podman_container_info:
+        name: "{{ item }}"
+      loop:
+        - forgejo-db
+        - forgejo
+        - cloudflared
+      register: core_containers
+
+    - name: Assert core containers are running
+      ansible.builtin.assert:
+        that:
+          - item.containers | length == 1
+          - item.containers[0].State.Status == 'running'
+      loop: "{{ core_containers.results }}"
+      loop_control:
+        label: "{{ item.item }}"

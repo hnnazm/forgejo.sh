@@ -1,0 +1,16 @@
+---
+- name: Render the PostgreSQL Quadlet
+  ansible.builtin.template:
+    src: forgejo-db.container.j2
+    dest: /etc/containers/systemd/forgejo-db.container
+    mode: "0644"
+  notify: Reload Quadlet services
+
+- name: Flush Quadlet changes before starting PostgreSQL
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start PostgreSQL
+  ansible.builtin.systemd:
+    name: forgejo-db.service
+    enabled: true
+    state: started

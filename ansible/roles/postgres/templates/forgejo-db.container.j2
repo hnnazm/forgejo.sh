@@ -1,0 +1,25 @@
+[Unit]
+Description=Forgejo PostgreSQL database
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=docker.io/library/postgres:{{ postgres_version }}
+ContainerName=forgejo-db
+Network={{ podman_network }}
+Volume={{ postgres_data_root }}/data:/var/lib/postgresql/data:Z
+Environment=POSTGRES_DB={{ forgejo_db_name }}
+Environment=POSTGRES_USER={{ forgejo_db_user }}
+Environment=POSTGRES_PASSWORD={{ vault_forgejo_db_password }}
+Environment=PGDATA=/var/lib/postgresql/data/pgdata
+HealthCmd=pg_isready -U {{ forgejo_db_user }} -d {{ forgejo_db_name }}
+HealthInterval=10s
+HealthTimeout=5s
+HealthRetries=5
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

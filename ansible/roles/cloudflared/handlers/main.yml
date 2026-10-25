@@ -1,0 +1,7 @@
+---
+- name: Reload cloudflared Quadlet
+  ansible.builtin.systemd:
+    daemon_reload: true
+    name: cloudflared.service
+    enabled: true
+    state: restarted

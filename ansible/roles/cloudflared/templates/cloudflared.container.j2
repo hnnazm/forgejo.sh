@@ -1,0 +1,16 @@
+[Unit]
+Description=Cloudflare Tunnel connector for Forgejo
+After=forgejo.service
+Requires=forgejo.service
+
+[Container]
+Image=docker.io/cloudflare/cloudflared:{{ cloudflared_version }}
+ContainerName=cloudflared
+Network={{ podman_network }}
+Exec=tunnel --no-autoupdate run --token {{ vault_cloudflare_tunnel_token }}
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

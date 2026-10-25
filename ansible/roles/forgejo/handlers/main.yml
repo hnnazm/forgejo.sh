@@ -1,0 +1,7 @@
+---
+- name: Reload Forgejo Quadlet
+  ansible.builtin.systemd:
+    daemon_reload: true
+    name: forgejo.service
+    enabled: true
+    state: restarted

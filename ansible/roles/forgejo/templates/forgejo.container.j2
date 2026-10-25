@@ -1,0 +1,37 @@
+[Unit]
+Description=Forgejo
+After=forgejo-db.service
+Requires=forgejo-db.service
+
+[Container]
+Image=codeberg.org/forgejo/forgejo:{{ forgejo_version }}
+ContainerName=forgejo
+Network={{ podman_network }}
+Volume={{ forgejo_data_root }}/data:/data:Z
+Environment=USER_UID=1000
+Environment=USER_GID=1000
+Environment=FORGEJO__server__ROOT_URL=https://{{ forgejo_external_hostname }}/
+Environment=FORGEJO__server__DOMAIN={{ forgejo_external_hostname }}
+Environment=FORGEJO__server__SSH_DOMAIN={{ forgejo_external_hostname }}
+Environment=FORGEJO__server__PROTOCOL=http
+Environment=FORGEJO__server__HTTP_PORT=3000
+Environment=FORGEJO__server__START_SSH_SERVER=false
+Environment=FORGEJO__server__DISABLE_SSH=true
+Environment=FORGEJO__security__INSTALL_LOCK=true
+Environment=FORGEJO__security__REVERSE_PROXY_LIMIT=1
+Environment=FORGEJO__security__REVERSE_PROXY_TRUSTED_PROXIES=10.0.0.0/8,172.16.0.0/12,192.168.0.0/16
+Environment=FORGEJO__database__DB_TYPE=postgres
+Environment=FORGEJO__database__HOST=forgejo-db:5432
+Environment=FORGEJO__database__NAME={{ forgejo_db_name }}
+Environment=FORGEJO__database__USER={{ forgejo_db_user }}
+Environment=FORGEJO__database__PASSWD={{ vault_forgejo_db_password }}
+Environment=FORGEJO__database__SSL_MODE=disable
+Environment=FORGEJO__service__DISABLE_REGISTRATION=true
+Environment=FORGEJO__actions__ENABLED=true
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

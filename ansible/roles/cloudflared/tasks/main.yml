@@ -1,0 +1,17 @@
+---
+- name: Render the cloudflared Quadlet
+  ansible.builtin.template:
+    src: cloudflared.container.j2
+    dest: /etc/containers/systemd/cloudflared.container
+    mode: "0600"
+  no_log: true
+  notify: Reload cloudflared Quadlet
+
+- name: Flush cloudflared Quadlet changes before starting service
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start cloudflared
+  ansible.builtin.systemd:
+    name: cloudflared.service
+    enabled: true
+    state: started

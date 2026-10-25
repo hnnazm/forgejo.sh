@@ -1,0 +1,20 @@
+---
+- name: Deploy Forgejo on the dedicated Podman host
+  hosts: forgejo_host
+  become: true
+  gather_facts: true
+  pre_tasks:
+    - name: Verify deployment secrets are present
+      ansible.builtin.assert:
+        that:
+          - vault_forgejo_admin_password is defined
+          - vault_forgejo_db_password is defined
+          - vault_cloudflare_tunnel_token is defined
+        fail_msg: >-
+          Copy group_vars/all/vault.yml.example to vault.yml, set all secrets,
+          encrypt it with ansible-vault, and supply its vault password.
+  roles:
+    - prereqs
+    - postgres
+    - forgejo
+    - cloudflared
