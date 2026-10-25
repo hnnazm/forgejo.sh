@@ -1,0 +1,47 @@
+---
+- name: Install Podman and the Python bindings
+  ansible.builtin.apt:
+    name:
+      - podman
+      - python3-podman
+    state: present
+    update_cache: true
+
+- name: Enable and start the rootful Podman API socket
+  ansible.builtin.systemd:
+    name: podman.socket
+    enabled: true
+    state: started
+
+- name: Create the forgejo system group
+  ansible.builtin.group:
+    name: "{{ forgejo_group }}"
+    system: true
+
+- name: Create the forgejo non-login system account
+  ansible.builtin.user:
+    name: "{{ forgejo_user }}"
+    group: "{{ forgejo_group }}"
+    system: true
+    create_home: true
+    home: "{{ forgejo_user_home }}"
+    shell: /usr/sbin/nologin
+
+- name: Create persistent workload directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ forgejo_user }}"
+    group: "{{ forgejo_group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ forgejo_data_root }}", mode: "0755" }
+    - { path: "{{ postgres_data_root }}", mode: "0755" }
+    - { path: "{{ runners_root }}", mode: "0755" }
+    - { path: "{{ runners_root }}/tokens", mode: "0700" }
+    - { path: /etc/containers/systemd, mode: "0755" }
+
+- name: Create the private Podman network
+  containers.podman.podman_network:
+    name: "{{ podman_network }}"
+    state: present

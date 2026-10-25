@@ -1,0 +1,61 @@
+---
+- name: Verify Podman host foundation
+  hosts: all
+  become: true
+  vars_files:
+    - "{{ playbook_dir }}/../group_vars/all/main.yml"
+  tasks:
+    - name: Apply the host foundation under test
+      ansible.builtin.import_role:
+        name: prereqs
+
+    - name: Read the forgejo service-account entry
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ forgejo_user }}"
+
+    - name: Assert the forgejo account is non-login
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.getent_passwd[forgejo_user][5] is search('nologin')
+
+    - name: Read the rootful Podman socket state
+      ansible.builtin.systemd:
+        name: podman.socket
+      check_mode: true
+      register: podman_socket
+
+    - name: Assert the rootful Podman socket is enabled
+      ansible.builtin.assert:
+        that:
+          - podman_socket.status.ActiveState == 'active'
+          - podman_socket.status.UnitFileState == 'enabled'
+
+    - name: Stat the persistent workload paths
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - "{{ forgejo_data_root }}"
+        - "{{ postgres_data_root }}"
+        - "{{ runners_root }}"
+        - "{{ runners_root }}/tokens"
+        - /etc/containers/systemd
+      register: persistent_paths
+
+    - name: Assert workload paths exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+      loop: "{{ persistent_paths.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Assert the private Podman network exists
+      containers.podman.podman_network_info:
+        name: "{{ podman_network }}"
+      register: podman_network
+
+    - name: Assert the private network is available
+      ansible.builtin.assert:
+        that:
+          - podman_network.networks | length == 1

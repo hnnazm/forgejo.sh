@@ -1,6 +1,9 @@
 # Local agent work records
 .workspaces/
 
+# Local Ansible/Galaxy collection cache
+ansible/.ansible/
+
 # Terraform state and local credentials
 terraform/.terraform/
 terraform/*.tfstate
