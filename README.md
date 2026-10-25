@@ -24,6 +24,38 @@ terraform output -raw tunnel_token
 
 Store the resulting token in the encrypted Ansible vault when the host layer is configured. Terraform state contains tunnel credentials; use an encrypted, access-controlled remote backend before applying outside a disposable environment.
 
+## Deploy on the dedicated Debian 12 host
+
+Install Ansible on the host, clone this repository, then configure the encrypted vault:
+
+```bash
+cd ansible
+ansible-galaxy collection install -r requirements.yml
+cp group_vars/all/vault.yml.example group_vars/all/vault.yml
+# Set the admin password, PostgreSQL password, and `terraform output -raw tunnel_token`.
+ansible-vault encrypt group_vars/all/vault.yml
+ansible-playbook -i inventory.ini site.yml --ask-vault-pass
+sudo ../scripts/verify-dind.sh
+```
+
+The default inventory intentionally targets `localhost`. After validating the dedicated VM, replace it with your Tailscale lab host, for example:
+
+```ini
+[forgejo_host]
+forgejo-lab ansible_host=100.x.y.z ansible_user=<your-admin-user>
+```
+
+Then invoke `ansible-playbook -i inventory.ini site.yml --ask-vault-pass`; the role logic does not contain host addresses or Tailscale policy. Configure Tailscale, SSH credentials, and ACLs outside this repository.
+
+## Verify
+
+```bash
+sudo podman ps
+# Expected: forgejo-db, forgejo, cloudflared, forgejo-runner-1, forgejo-runner-2
+```
+
+Open `https://<forgejo_hostname>/api/healthz`, then use **Site Administration → Actions → Runners** to confirm exactly two online `docker` runners. Run `examples/demo-dind.yml` as a Forgejo workflow; its `docker info` and image build must succeed.
+
 ## Validation
 
 ```bash
@@ -32,4 +64,8 @@ terraform fmt -check -diff
 terraform init -backend=false
 terraform validate
 terraform test
+
+cd ../ansible
+ansible-lint .
+ansible-playbook --syntax-check -i inventory.ini site.yml
 ```

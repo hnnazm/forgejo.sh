@@ -1,0 +1,29 @@
+---
+- name: Stop the Forgejo Podman stack
+  hosts: forgejo_host
+  become: true
+  vars_files:
+    - group_vars/all/main.yml
+  tasks:
+    - name: Stop and disable Quadlet services
+      ansible.builtin.systemd:
+        name: "{{ item }}.service"
+        enabled: false
+        state: stopped
+      loop:
+        - cloudflared
+        - forgejo-runner-1
+        - forgejo-runner-2
+        - forgejo
+        - forgejo-db
+      failed_when: false
+
+    - name: Remove persistent data only when explicitly confirmed
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ forgejo_data_root }}"
+        - "{{ postgres_data_root }}"
+        - "{{ runners_root }}"
+      when: confirm_wipe | default(false) | bool
