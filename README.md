@@ -56,6 +56,18 @@ sudo podman ps
 
 Open `https://<forgejo_hostname>/api/healthz`, then use **Site Administration → Actions → Runners** to confirm exactly two online `docker` runners. Run `examples/demo-dind.yml` as a Forgejo workflow; its `docker info` and image build must succeed.
 
+## Container registry
+
+Forgejo's built-in OCI registry is enabled by `forgejo_packages_enabled: true`. It uses the existing HTTPS hostname and persists with Forgejo data. Authenticate and publish an image with:
+
+```bash
+docker login <forgejo-hostname>
+docker tag alpine:latest <forgejo-hostname>/<owner>/registry-smoke:latest
+docker push <forgejo-hostname>/<owner>/registry-smoke:latest
+```
+
+Cloudflare's proxied upload limit can reject large image layers. If representative images exceed that limit, keep the main Forgejo hostname proxied and add a separate DNS-only registry hostname with direct TLS reverse-proxy ingress to Forgejo, or restrict registry clients to Tailscale. This requires a separate ingress design; it is not enabled by this repository.
+
 ## Validation
 
 ```bash

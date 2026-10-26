@@ -28,6 +28,7 @@ Environment=FORGEJO__database__PASSWD={{ vault_forgejo_db_password }}
 Environment=FORGEJO__database__SSL_MODE=disable
 Environment=FORGEJO__service__DISABLE_REGISTRATION=true
 Environment=FORGEJO__actions__ENABLED=true
+Environment=FORGEJO__packages__ENABLED={{ forgejo_packages_enabled | string | lower }}
 
 [Service]
 Restart=always

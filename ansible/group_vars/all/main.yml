@@ -18,6 +18,7 @@ forgejo_admin_username: forgejo
 forgejo_admin_email: admin@example.com
 forgejo_db_name: forgejo
 forgejo_db_user: forgejo
+forgejo_packages_enabled: true
 
 runner_count: 2
 runner_concurrent: 1

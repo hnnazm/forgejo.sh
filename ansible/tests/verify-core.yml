@@ -17,6 +17,16 @@
       ansible.builtin.import_role:
         name: cloudflared
 
+    - name: Read the rendered Forgejo Quadlet
+      ansible.builtin.slurp:
+        src: /etc/containers/systemd/forgejo.container
+      register: forgejo_quadlet
+
+    - name: Assert the built-in Packages registry is enabled
+      ansible.builtin.assert:
+        that:
+          - "'FORGEJO__packages__ENABLED=true' in (forgejo_quadlet.content | b64decode)"
+
     - name: Check the Forgejo health endpoint from its container
       containers.podman.podman_container_exec:
         name: forgejo
