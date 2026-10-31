@@ -14,16 +14,15 @@ Perform the source-host steps through Tailscale SSH as an account that can run p
 
 Install these tools before beginning:
 
-- Source host: `docker`, `tar`, `sha256sum`, `age`, `rsync` or `scp`.
-- Control machine: `age`, `sha256sum`, `tar`, `docker` or a compatible PostgreSQL client image, and OpenTofu for the source state.
-- Destination machine: enough encrypted storage for the full archive plus a temporary decrypted extraction.
+- Source host: `docker`, `tar`, `sha256sum`, `rsync` or `scp`.
+- Control machine: `sha256sum`, `tar`, `docker` or a compatible PostgreSQL client image, and OpenTofu for the source state.
+- Backup destination: enough protected local storage for the full plaintext archive plus a temporary extraction.
 
 Set values before copying commands. Use a Tailscale hostname or `100.x.y.z` address for `BACKUP_DESTINATION`.
 
 ```bash
 export SOURCE_HOST='forgejo-current'
 export BACKUP_DESTINATION='forgejo-control'
-export AGE_RECIPIENT='age1REPLACE_WITH_BACKUP_RECIPIENT_PUBLIC_KEY'
 export SOURCE_REPO="$HOME/forgejo-selfhost"       # source IaC checkout on control machine
 export BACKUP_ID="forgejo-migration-$(date -u +%Y%m%dT%H%M%SZ)"
 export SOURCE_STAGE="/root/$BACKUP_ID"             # on the Docker source host
@@ -117,47 +116,47 @@ ssh "$SOURCE_HOST" "sudo tar --xattrs --acls --numeric-owner -C /srv/forgejo-db 
 
 The PostgreSQL data-directory archive and runner-token archive are **rollback evidence only**. Do not restore either directly over the shared paths during the in-place cutover. The logical `postgres-forgejo.dump` is the portable recovery artifact. The new Podman deployment must register its two runner identities rather than reuse the three Docker runner identities.
 
-## 6. Build an encrypted transfer bundle
+## 6. Build and transfer the plaintext backup bundle
 
-Copy the source-host artifacts to the staging directory on the control machine over Tailscale, then create one encrypted archive. Do not transfer plaintext artifacts to any third party.
+Copy the source-host artifacts to the staging directory on the control machine over Tailscale, then create one plaintext archive. Transfer it only over Tailscale SSH to the protected backup destination.
 
 ```bash
 rsync -a --protect-args -e ssh "$SOURCE_HOST:$SOURCE_STAGE/" "$CONTROL_STAGE/source-host/"
 
 find "$CONTROL_STAGE" -type f -printf '%P\n' | sort > "$CONTROL_STAGE/MANIFEST.txt"
 tar -C "$(dirname "$CONTROL_STAGE")" -czf "${CONTROL_STAGE}.tar.gz" "$(basename "$CONTROL_STAGE")"
-age -r "$AGE_RECIPIENT" -o "${CONTROL_STAGE}.tar.gz.age" "${CONTROL_STAGE}.tar.gz"
-sha256sum "${CONTROL_STAGE}.tar.gz.age" > "${CONTROL_STAGE}.tar.gz.age.sha256"
+chmod 600 "${CONTROL_STAGE}.tar.gz"
+sha256sum "${CONTROL_STAGE}.tar.gz" > "${CONTROL_STAGE}.tar.gz.sha256"
 ```
 
-Transfer only the encrypted bundle and checksum to the backup destination over Tailscale:
+Transfer only the plaintext bundle and checksum to the backup destination over Tailscale:
 
 ```bash
+ssh "$BACKUP_DESTINATION" 'mkdir -p -m 700 ~/forgejo-migration-backups'
 rsync -av --protect-args -e ssh \
-  "${CONTROL_STAGE}.tar.gz.age" "${CONTROL_STAGE}.tar.gz.age.sha256" \
+  "${CONTROL_STAGE}.tar.gz" "${CONTROL_STAGE}.tar.gz.sha256" \
   "$BACKUP_DESTINATION:~/forgejo-migration-backups/"
 ```
 
 ## 7. Verify the destination copy
 
-On the backup destination, verify the encrypted bytes before considering the backup complete. Decrypt only to a protected temporary directory, using the private identity corresponding to `AGE_RECIPIENT`.
+On the backup destination, verify the transferred bytes before considering the backup complete. The archive is plaintext and contains sensitive repositories, database data, vault material, and Terraform state; restrict it to the backup account and do not upload it to third-party storage.
 
 ```bash
 cd ~/forgejo-migration-backups
-# Replace the value with the transferred filename, excluding `.sha256`.
-export BUNDLE='forgejo-migration-YYYYMMDDTHHMMSSZ.tar.gz.age'
+# Replace the value with the transferred archive filename.
+export BUNDLE='forgejo-migration-YYYYMMDDTHHMMSSZ.tar.gz'
+chmod 700 .
+chmod 600 "$BUNDLE" "${BUNDLE}.sha256"
 sha256sum --check "${BUNDLE}.sha256"
-mkdir -m 0700 restore-readiness
-age -d -i ~/.config/age/migration-backup.key \
-  -o restore-readiness/forgejo-migration.tar.gz \
-  "$BUNDLE"
-tar -tzf restore-readiness/forgejo-migration.tar.gz | less
+mkdir -m 700 restore-readiness
+tar -tzf "$BUNDLE" | less
 ```
 
 Extract only in protected storage and validate the database dump before cutover:
 
 ```bash
-tar -C restore-readiness -xzf restore-readiness/forgejo-migration.tar.gz
+tar -C restore-readiness -xzf "$BUNDLE"
 DUMP="$(find restore-readiness -name postgres-forgejo.dump -print -quit)"
 docker run --rm -v "$(dirname "$DUMP"):/backup:ro" postgres:17-alpine \
   pg_restore --list "/backup/$(basename "$DUMP")" > /dev/null
