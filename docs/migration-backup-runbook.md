@@ -1,10 +1,12 @@
 # Docker Forgejo to Podman migration backup runbook
 
-This runbook creates a consistent, encrypted migration backup of the current Docker-based Forgejo host before any Podman cutover. It is **not** the cutover or restore procedure.
+This runbook creates a consistent, encrypted migration backup of the current Docker-based Forgejo host before an **in-place** Podman cutover on that same host. It is **not** the cutover or restore procedure.
+
+The encrypted backup destination is a separate Tailscale-connected control machine. The Docker source and Podman target share one host and must never access the persistent data paths concurrently.
 
 The source deployment stores Forgejo data in `/srv/forgejo/data`, PostgreSQL data in `/srv/forgejo-db/data`, and runner registration identities in `/srv/forgejo-runners/tokens`. Its containers are `forgejo`, `forgejo-db`, `cloudflared`, and `forgejo-runner-1` through `forgejo-runner-3`.
 
-> **Stop condition:** Do not start the destination stack, change DNS/Tunnel configuration, run `terraform apply`, or delete source data until this runbook's destination verification and a separate restore rehearsal have succeeded.
+> **Stop condition:** Do not enable any Podman Quadlet, change DNS/Tunnel configuration, run `terraform apply`, or delete source data until this runbook's external-backup verification and a separate restore rehearsal have succeeded. Docker and Podman must not run concurrently against the shared `/srv` paths.
 
 ## 1. Prerequisites
 
@@ -113,7 +115,7 @@ ssh "$SOURCE_HOST" "sudo tar --xattrs --acls --numeric-owner -C /srv/forgejo-run
 ssh "$SOURCE_HOST" "sudo tar --xattrs --acls --numeric-owner -C /srv/forgejo-db -czf '$SOURCE_STAGE/postgres-data-cold-rollback-only.tgz' data"
 ```
 
-The PostgreSQL data-directory archive and runner-token archive are **rollback evidence only**. Do not restore them directly into the new Podman stack. Restore the logical `postgres-forgejo.dump` into the destination database, and register the destination's two runners as new runner identities.
+The PostgreSQL data-directory archive and runner-token archive are **rollback evidence only**. Do not restore either directly over the shared paths during the in-place cutover. The logical `postgres-forgejo.dump` is the portable recovery artifact. The new Podman deployment must register its two runner identities rather than reuse the three Docker runner identities.
 
 ## 6. Build an encrypted transfer bundle
 
@@ -163,13 +165,38 @@ docker run --rm -v "$(dirname "$DUMP"):/backup:ro" postgres:17-alpine \
 
 Expected result: checksum verification, archive listing, and `pg_restore --list` all exit zero. Retain the encrypted bundle in at least two secure locations before cutover.
 
-## 8. Source rollback and cleanup
+## 8. In-place cutover interlock and rollback
 
-Do not delete the source data after backup verification. To abandon the migration before the source is intentionally decommissioned, restart the original Docker stack:
+The same host is both the Docker source and Podman target. The Podman Quadlets use the same persistent paths:
+
+```text
+/srv/forgejo
+/srv/forgejo-db
+/srv/forgejo-runners
+```
+
+Before enabling any Podman service, verify all Docker containers are stopped. Do not run the Docker and Podman stacks at the same time, even though their container names are isolated by engine.
 
 ```bash
-ssh "$SOURCE_HOST" 'sudo docker start forgejo-db forgejo forgejo-runner-1 forgejo-runner-2 forgejo-runner-3 cloudflared'
-ssh "$SOURCE_HOST" 'sudo docker ps --format "table {{.Names}}\t{{.Status}}"'
+ssh "$SOURCE_HOST" 'sudo docker ps --format "{{.Names}}" | grep -E "^(forgejo|forgejo-db|cloudflared|forgejo-runner-)" && exit 1 || exit 0'
+```
+
+At cutover, start PostgreSQL and Forgejo Podman services first; verify local Forgejo health; then start cloudflared. This preserves the existing Cloudflare Tunnel and prevents the connector from serving an unhealthy Forgejo instance:
+
+```bash
+sudo systemctl start forgejo-db.service forgejo.service
+sudo podman exec forgejo wget -qO- http://localhost:3000/api/healthz
+sudo systemctl start forgejo-runner-1.service forgejo-runner-2.service cloudflared.service
+```
+
+Do not alter the existing Cloudflare Tunnel/DNS during this handoff. The same connector token moves from the stopped Docker `cloudflared` container to the Podman `cloudflared.service`.
+
+Do not delete the Docker containers or source data after backup verification. To abandon the migration before the source is intentionally decommissioned, stop the Podman services, then restart the original Docker stack without copying or restoring any data:
+
+```bash
+sudo systemctl stop cloudflared.service forgejo-runner-1.service forgejo-runner-2.service forgejo.service forgejo-db.service
+sudo docker start forgejo-db forgejo forgejo-runner-1 forgejo-runner-2 forgejo-runner-3 cloudflared
+sudo docker ps --format "table {{.Names}}\t{{.Status}}"
 ```
 
 After a successful destination restore rehearsal and agreed production cutover, securely remove plaintext staging data according to the host storage policy. `rm` does not reliably sanitize SSDs or copy-on-write storage; rely on encryption and storage-provider destruction procedures where secure erasure is required.
