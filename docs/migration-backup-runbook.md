@@ -37,7 +37,7 @@ ssh "$SOURCE_HOST" 'sudo mkdir -p -m 0700 '"$SOURCE_STAGE"''
 mkdir -p -m 0700 "$CONTROL_STAGE"
 ```
 
-Record the output in the change record. Ensure `STAGE` is on storage that can hold the PostgreSQL dump and data archive.
+Record the output in the change record. Ensure both staging directories are on storage that can hold the PostgreSQL dump and data archive.
 
 ## 2. Capture Cloudflare and source-IaC continuity evidence
 
