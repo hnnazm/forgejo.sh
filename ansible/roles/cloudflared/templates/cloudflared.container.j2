@@ -1,7 +1,9 @@
 [Unit]
 Description=Cloudflare Tunnel connector for Forgejo
-After=forgejo.service
+After=forgejo.service tailscaled.service
 Requires=forgejo.service
+Wants=tailscaled.service
+StartLimitIntervalSec=0
 
 [Container]
 Image=docker.io/cloudflare/cloudflared:{{ cloudflared_version }}
@@ -11,6 +13,7 @@ Exec=tunnel --no-autoupdate run --token {{ vault_cloudflare_tunnel_token }}
 
 [Service]
 Restart=always
+RestartSec=15
 
 [Install]
 WantedBy=multi-user.target
