@@ -1,8 +1,10 @@
 # Local agent work records
 .workspaces/
 
-# Local Ansible/Galaxy collection cache
+# Local Ansible/Galaxy collection cache and encrypted deployment secrets
 ansible/.ansible/
+ansible/group_vars/all/vault.yml
+.env.local
 
 # Terraform state and local credentials
 terraform/.terraform/
