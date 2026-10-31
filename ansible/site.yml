@@ -16,6 +16,7 @@
           encrypt it with ansible-vault, and supply its vault password.
   roles:
     - prereqs
+    - ci_images
     - postgres
     - forgejo
     - forgejo_runners

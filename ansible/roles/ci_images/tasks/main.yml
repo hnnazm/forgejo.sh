@@ -1,0 +1,30 @@
+---
+- name: Create local CI image build directories
+  ansible.builtin.file:
+    path: "{{ ci_images_root }}/{{ item.name }}"
+    state: directory
+    mode: "0755"
+  loop:
+    - { name: terraform }
+    - { name: ansible }
+
+- name: Copy local CI image Containerfiles
+  ansible.builtin.copy:
+    src: "{{ item.source }}"
+    dest: "{{ ci_images_root }}/{{ item.name }}/Containerfile"
+    mode: "0644"
+  loop:
+    - { name: terraform, source: terraform.Containerfile }
+    - { name: ansible, source: ansible.Containerfile }
+
+- name: Build local CI images when their version tag is absent
+  containers.podman.podman_image:
+    name: "{{ item.image }}"
+    path: "{{ ci_images_root }}/{{ item.name }}"
+    build:
+      file: "{{ ci_images_root }}/{{ item.name }}/Containerfile"
+      format: oci
+    pull: true
+  loop:
+    - { name: terraform, image: "{{ ci_terraform_image }}" }
+    - { name: ansible, image: "{{ ci_ansible_image }}" }

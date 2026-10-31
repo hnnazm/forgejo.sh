@@ -25,3 +25,6 @@ runner_labels: docker
 runner_privileged: true
 runner_container_uid: "1000"
 default_ci_image: node:20-bookworm
+ci_images_root: /usr/local/share/forgejo-ci-images
+ci_terraform_image: localhost/forgejo-ci-terraform:1
+ci_ansible_image: localhost/forgejo-ci-ansible:1
