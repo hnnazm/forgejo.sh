@@ -7,6 +7,7 @@ Requires=forgejo-db.service
 Image=codeberg.org/forgejo/forgejo:{{ forgejo_version }}
 ContainerName=forgejo
 Network={{ podman_network }}
+PublishPort=127.0.0.1:3000:3000
 Volume={{ forgejo_data_root }}/data:/data:Z
 Environment=USER_UID=1000
 Environment=USER_GID=1000

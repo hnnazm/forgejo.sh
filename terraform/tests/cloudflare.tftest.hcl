@@ -19,6 +19,7 @@ variables {
   cloudflare_account_id = "account-id"
   cloudflare_zone_id    = "zone-id"
   forgejo_hostname      = "forgejo.example.test"
+  forgejo_service_url   = "http://127.0.0.1:3000"
 }
 
 run "routes_the_forgejo_hostname_to_the_internal_origin" {
@@ -30,8 +31,8 @@ run "routes_the_forgejo_hostname_to_the_internal_origin" {
   }
 
   assert {
-    condition     = cloudflare_zero_trust_tunnel_cloudflared_config.forgejo.config.ingress[0].service == "http://forgejo:3000"
-    error_message = "The tunnel must use the internal Forgejo Podman-network origin."
+    condition     = cloudflare_zero_trust_tunnel_cloudflared_config.forgejo.config.ingress[0].service == "http://127.0.0.1:3000"
+    error_message = "The tunnel must use Forgejo's loopback-only host listener."
   }
 
   assert {

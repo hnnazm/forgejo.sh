@@ -26,7 +26,7 @@ variable "forgejo_hostname" {
 }
 
 variable "forgejo_service_url" {
-  description = "Cloudflared origin on the private Podman network; never localhost."
+  description = "Cloudflared origin on the host loopback listener; it is never publicly exposed."
   type        = string
-  default     = "http://forgejo:3000"
+  default     = "http://127.0.0.1:3000"
 }
