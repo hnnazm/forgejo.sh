@@ -73,6 +73,7 @@
     owner: "{{ runner_container_uid }}"
     group: "{{ forgejo_group }}"
     mode: "0640"
+  notify: Reload runner Quadlets
 
 - name: Render runner Quadlet for runner {{ runner_index }}
   ansible.builtin.template:
