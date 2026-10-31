@@ -1,12 +1,12 @@
 # Docker Forgejo to Podman migration backup runbook
 
-This runbook creates a consistent, encrypted migration backup of the current Docker-based Forgejo host before an **in-place** Podman cutover on that same host. It is **not** the cutover or restore procedure.
+This runbook creates a consistent, plaintext migration backup of the current Docker-based Forgejo host before an **in-place** Podman cutover on that same host. It is **not** the cutover or restore procedure.
 
 The separate Tailscale-connected control machine stores the plaintext backup. The Docker source and Podman target share one host and must never access the persistent data paths concurrently.
 
 The source deployment stores Forgejo data in `/srv/forgejo/data`, PostgreSQL data in `/srv/forgejo-db/data`, and runner registration identities in `/srv/forgejo-runners/tokens`. Its containers are `forgejo`, `forgejo-db`, `cloudflared`, and `forgejo-runner-1` through `forgejo-runner-3`.
 
-> **Stop condition:** Do not enable any Podman Quadlet, change DNS/Tunnel configuration, run `terraform apply`, or delete source data until this runbook's external-backup verification and a separate restore rehearsal have succeeded. Docker and Podman must not run concurrently against the shared `/srv` paths.
+> **Stop condition:** Do not enable any Podman Quadlet, change the current primary DNS/Tunnel configuration, or delete source data until this runbook's external-backup verification and a separate restore rehearsal have succeeded. Docker and Podman must not run concurrently against the shared `/srv` paths.
 
 ## 1. Prerequisites
 
@@ -15,7 +15,7 @@ Perform the source-host steps through Tailscale SSH as an account that can run p
 Install these tools before beginning:
 
 - Source host: `docker`, `tar`, `sha256sum`, `rsync` or `scp`.
-- Control machine: `sha256sum`, `tar`, `docker` or a compatible PostgreSQL client image, and OpenTofu for the source state.
+- Control machine: `sha256sum`, `tar`, `docker` or a compatible PostgreSQL client image, and Terraform for the new temporary migration hostname.
 - Backup destination: enough protected local storage for the full plaintext archive plus a temporary extraction.
 
 Set values before copying commands. Use a Tailscale hostname or `100.x.y.z` address for `BACKUP_DESTINATION`.
@@ -40,22 +40,11 @@ mkdir -p -m 0700 "$CONTROL_STAGE"
 
 Record the output in the change record. Ensure both staging directories are on storage that can hold the PostgreSQL dump and data archive.
 
-## 2. Capture Cloudflare and source-IaC continuity evidence
+## 2. Preserve source configuration and prepare a parallel Cloudflare hostname
 
-The destination Terraform configuration must **reuse** the current Cloudflare Tunnel and DNS resources. Preserve their state; a new `terraform apply` without state reconciliation can create duplicates or alter the live hostname.
+The source OpenTofu state is unavailable. The new Terraform configuration will therefore create a **new Cloudflare Tunnel and proxied DNS record for a temporary migration hostname**. It must not alter the current Docker Forgejo Tunnel, primary DNS record, or hostname during backup and Podman validation.
 
-Run these commands from the trusted control checkout, not from the Forgejo host:
-
-```bash
-cd "$SOURCE_REPO/terraform"
-umask 077
-tofu state list | tee "$CONTROL_STAGE/cloudflare-state-addresses.txt"
-tofu state pull > "$CONTROL_STAGE/cloudflare-source.tfstate"
-cp .terraform.lock.hcl "$CONTROL_STAGE/cloudflare-source.lock.hcl"
-cp terraform.tfvars "$CONTROL_STAGE/cloudflare-source.tfvars"
-```
-
-Also preserve the source Ansible configuration and encrypted vault. Never decrypt the vault for backup:
+Capture the source Ansible configuration and encrypted vault as recovery evidence. Never decrypt the vault for backup:
 
 ```bash
 cd "$SOURCE_REPO"
@@ -63,15 +52,9 @@ tar -C ansible -czf "$CONTROL_STAGE/source-ansible-config.tgz" \
   group_vars/all/main.yml group_vars/all/vault.yml inventory.ini requirements.yml
 ```
 
-The captured `cloudflare-state-addresses.txt` is the authoritative list of resources to import or reconcile later. At minimum, expect the source addresses:
+Before the later Podman deployment, set a temporary hostname in the new repository's `terraform.tfvars` and matching Ansible `forgejo_external_hostname`. Run `terraform plan` and require it to create only the new migration Tunnel/DNS resources. Do not apply a configuration that changes or deletes the current primary hostname.
 
-```text
-cloudflare_zero_trust_tunnel_cloudflared.forgejo
-cloudflare_zero_trust_tunnel_cloudflared_config.forgejo
-cloudflare_dns_record.forgejo
-```
-
-Do **not** copy a state file into the new Terraform directory and run apply blindly. During the later cutover, inspect the source state for provider-specific IDs, run the appropriate Terraform imports into the selected backend, then require `terraform plan` to show no unexpected create/replace/destroy actions before any apply.
+After data restore and validation through the temporary migration hostname, perform the primary-hostname DNS/Tunnel handoff as a separate approved cutover operation.
 
 ## 3. Quiesce Forgejo writes
 
@@ -207,8 +190,9 @@ After a successful destination restore rehearsal and agreed production cutover, 
 - [ ] Cold `forgejo-data.tgz` archive exists.
 - [ ] Runner-token and cold PostgreSQL archives are marked rollback-only.
 - [ ] Encrypted Ansible vault and source IaC configuration captured without decryption.
-- [ ] OpenTofu state, lock file, tfvars, and Cloudflare resource addresses captured.
+- [ ] Source Ansible configuration and encrypted vault captured without decryption.
+- [ ] Temporary migration hostname is reserved; current primary Tunnel/DNS remains unchanged.
 - [ ] Plaintext bundle checksum passes on the Tailscale backup destination.
 - [ ] Destination archive listing and logical database dump verification pass.
-- [ ] Existing Cloudflare resources are marked for later Terraform import/reconciliation; no new Tunnel/DNS resources have been applied.
+- [ ] New Terraform resources, when applied later, use only the temporary migration hostname; the primary Tunnel/DNS remains unchanged.
 - [ ] Source Docker stack remains available for rollback until cutover acceptance.
