@@ -29,6 +29,7 @@
 - name: Create the initial Forgejo administrator
   containers.podman.podman_container_exec:
     name: forgejo
+    user: "1000:1000"
     command: >-
       forgejo admin user create --admin --username {{ forgejo_admin_username }}
       --email {{ forgejo_admin_email }} --password {{ vault_forgejo_admin_password }}
