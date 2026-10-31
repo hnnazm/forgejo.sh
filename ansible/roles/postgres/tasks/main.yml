@@ -14,3 +14,57 @@
     name: forgejo-db.service
     enabled: true
     state: started
+
+- name: Calculate the PostgreSQL password fingerprint
+  ansible.builtin.set_fact:
+    postgres_password_fingerprint: "{{ vault_forgejo_db_password | hash('sha256') }}"
+  changed_when: false
+  no_log: true
+
+- name: Check the PostgreSQL password fingerprint
+  ansible.builtin.stat:
+    path: "{{ postgres_data_root }}/.forgejo-db-password-fingerprint"
+  register: postgres_password_fingerprint_file
+  changed_when: false
+
+- name: Read the PostgreSQL password fingerprint
+  ansible.builtin.slurp:
+    src: "{{ postgres_data_root }}/.forgejo-db-password-fingerprint"
+  register: postgres_password_fingerprint_content
+  when: postgres_password_fingerprint_file.stat.exists
+  changed_when: false
+
+- name: Rotate the PostgreSQL role password
+  ansible.builtin.command:
+    argv:
+      - podman
+      - exec
+      - -i
+      - forgejo-db
+      - psql
+      - -U
+      - "{{ forgejo_db_user }}"
+      - -d
+      - "{{ forgejo_db_name }}"
+      - -v
+      - ON_ERROR_STOP=1
+    stdin: >-
+      ALTER ROLE "{{ forgejo_db_user | replace('"', '""') }}"
+      PASSWORD '{{ vault_forgejo_db_password | replace("'", "''") }}';
+  when: >-
+    not postgres_password_fingerprint_file.stat.exists or
+    (postgres_password_fingerprint_content.content | b64decode | trim) != postgres_password_fingerprint
+  changed_when: true
+  no_log: true
+
+- name: Write the PostgreSQL password fingerprint
+  ansible.builtin.copy:
+    content: "{{ postgres_password_fingerprint }}\n"
+    dest: "{{ postgres_data_root }}/.forgejo-db-password-fingerprint"
+    owner: "{{ forgejo_user }}"
+    group: "{{ forgejo_group }}"
+    mode: "0600"
+  when: >-
+    not postgres_password_fingerprint_file.stat.exists or
+    (postgres_password_fingerprint_content.content | b64decode | trim) != postgres_password_fingerprint
+  no_log: true
