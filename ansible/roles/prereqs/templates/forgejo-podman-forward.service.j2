@@ -1,0 +1,13 @@
+[Unit]
+Description=Allow Forgejo Podman bridge egress through Docker forwarding
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c '/usr/sbin/iptables -C DOCKER-USER -i podman1 -j ACCEPT || /usr/sbin/iptables -I DOCKER-USER 1 -i podman1 -j ACCEPT'
+ExecStart=/bin/sh -c '/usr/sbin/iptables -C DOCKER-USER -o podman1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT || /usr/sbin/iptables -I DOCKER-USER 2 -o podman1 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=docker.service

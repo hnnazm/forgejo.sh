@@ -45,3 +45,18 @@
   containers.podman.podman_network:
     name: "{{ podman_network }}"
     state: present
+
+# Docker's legacy FORWARD policy is DROP on this host. Netavark's bridge rules
+# are evaluated after it, so permit only Podman's bridge egress and replies.
+- name: Install the Podman bridge egress service
+  ansible.builtin.template:
+    src: forgejo-podman-forward.service.j2
+    dest: /etc/systemd/system/forgejo-podman-forward.service
+    mode: "0644"
+
+- name: Enable the Podman bridge egress service
+  ansible.builtin.systemd:
+    name: forgejo-podman-forward.service
+    daemon_reload: true
+    enabled: true
+    state: started
