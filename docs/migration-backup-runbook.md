@@ -2,7 +2,7 @@
 
 This runbook creates a consistent, encrypted migration backup of the current Docker-based Forgejo host before an **in-place** Podman cutover on that same host. It is **not** the cutover or restore procedure.
 
-The encrypted backup destination is a separate Tailscale-connected control machine. The Docker source and Podman target share one host and must never access the persistent data paths concurrently.
+The separate Tailscale-connected control machine stores the plaintext backup. The Docker source and Podman target share one host and must never access the persistent data paths concurrently.
 
 The source deployment stores Forgejo data in `/srv/forgejo/data`, PostgreSQL data in `/srv/forgejo-db/data`, and runner registration identities in `/srv/forgejo-runners/tokens`. Its containers are `forgejo`, `forgejo-db`, `cloudflared`, and `forgejo-runner-1` through `forgejo-runner-3`.
 
@@ -162,7 +162,7 @@ docker run --rm -v "$(dirname "$DUMP"):/backup:ro" postgres:17-alpine \
   pg_restore --list "/backup/$(basename "$DUMP")" > /dev/null
 ```
 
-Expected result: checksum verification, archive listing, and `pg_restore --list` all exit zero. Retain the encrypted bundle in at least two secure locations before cutover.
+Expected result: checksum verification, archive listing, and `pg_restore --list` all exit zero. Retain the plaintext bundle in at least two protected locations before cutover.
 
 ## 8. In-place cutover interlock and rollback
 
@@ -208,7 +208,7 @@ After a successful destination restore rehearsal and agreed production cutover, 
 - [ ] Runner-token and cold PostgreSQL archives are marked rollback-only.
 - [ ] Encrypted Ansible vault and source IaC configuration captured without decryption.
 - [ ] OpenTofu state, lock file, tfvars, and Cloudflare resource addresses captured.
-- [ ] Encrypted bundle checksum passes on the Tailscale backup destination.
+- [ ] Plaintext bundle checksum passes on the Tailscale backup destination.
 - [ ] Destination archive listing and logical database dump verification pass.
 - [ ] Existing Cloudflare resources are marked for later Terraform import/reconciliation; no new Tunnel/DNS resources have been applied.
 - [ ] Source Docker stack remains available for rollback until cutover acceptance.
