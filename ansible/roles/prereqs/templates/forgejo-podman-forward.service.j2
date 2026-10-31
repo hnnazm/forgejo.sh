@@ -2,6 +2,7 @@
 Description=Allow Forgejo Podman bridge egress through Docker forwarding
 After=docker.service
 Requires=docker.service
+PartOf=docker.service
 
 [Service]
 Type=oneshot
