@@ -1,3 +1,0 @@
-FROM hashicorp/terraform:1.11
-
-RUN apk add --no-cache nodejs git
