@@ -1,7 +1,7 @@
 # Test Plan: Podman production readiness
 
 - Under test: deployed Podman Quadlet Forgejo stack on `forgejo-source`
-- Criteria source: user request to run the registry smoke test, reboot-persistence test, and post-reboot Ansible idempotency test before promoting `forgejo.example.com`.
+- Criteria source: user request to run the registry smoke test, reboot-persistence test, and post-reboot Ansible idempotency test before promoting the canonical hostname.
 
 ## Strategy
 
@@ -11,7 +11,7 @@ Run authenticated container-registry push/pull using the temporary public hostna
 
 | # | Criterion | Test | Result |
 |---|---|---|---|
-| 1 | An authenticated user can push and pull a container image through the temporary Forgejo registry hostname. | Logged in as `forgejo`, pushed a newly tagged BusyBox image, removed its local tag, then pulled it from `forgejo-migrate.example.com`. | PASS |
+| 1 | An authenticated user can push and pull a container image through the temporary Forgejo registry hostname. | Logged in as `forgejo`, pushed a newly tagged BusyBox image, removed its local tag, then pulled it from the temporary validation hostname. | PASS |
 | 2 | After a host reboot, Forgejo, PostgreSQL, cloudflared, both runners, and Podman bridge egress recover without manual intervention. | After the cloudflared retry repair, SSH recovered on the fifth 5-second probe; all six required services were `active`; cloudflared recovered after one delayed retry; public health passed; and a fresh `forgejo-net` BusyBox request reached Debian. | PASS |
 | 3 | The full Ansible deployment converges after reboot without unexpected changes. | Complete `ansible/site.yml` run after the repaired reboot reported `ok=32 changed=0 unreachable=0 failed=0`. | PASS |
 
@@ -32,4 +32,4 @@ N/A. B1, the cloudflared reboot DNS race, was repaired and verified by the secon
 
 N/A.
 
-VERDICT: PASS — 3/3 readiness criteria passed. The temporary Podman deployment is ready for the credential rotation and controlled `forgejo.example.com` cutover steps.
+VERDICT: PASS — 3/3 readiness criteria passed. The temporary Podman deployment is ready for the credential rotation and controlled canonical-hostname cutover steps.

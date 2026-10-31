@@ -11,9 +11,9 @@ PublishPort=127.0.0.1:3000:3000
 Volume={{ forgejo_data_root }}/data:/data:Z
 Environment=USER_UID=1000
 Environment=USER_GID=1000
-Environment=FORGEJO__server__ROOT_URL=https://{{ forgejo_external_hostname }}/
-Environment=FORGEJO__server__DOMAIN={{ forgejo_external_hostname }}
-Environment=FORGEJO__server__SSH_DOMAIN={{ forgejo_external_hostname }}
+Environment=FORGEJO__server__ROOT_URL=https://{{ vault_forgejo_external_hostname }}/
+Environment=FORGEJO__server__DOMAIN={{ vault_forgejo_external_hostname }}
+Environment=FORGEJO__server__SSH_DOMAIN={{ vault_forgejo_external_hostname }}
 Environment=FORGEJO__server__PROTOCOL=http
 Environment=FORGEJO__server__HTTP_PORT=3000
 Environment=FORGEJO__server__START_SSH_SERVER=false

@@ -1,6 +1,6 @@
 ## Context
 
-A controlled reboot of `forgejo-source` was run as the Podman-stack persistence acceptance test. Expected behavior was for the temporary Forgejo endpoint to recover automatically. Actual behavior: `cloudflared.service` failed, and `https://forgejo-migrate.example.com/api/healthz` returned Cloudflare HTTP 530. Forgejo, PostgreSQL, both runners, Podman bridge forwarding, and a fresh Podman-network HTTP egress probe recovered.
+A controlled reboot of `forgejo-source` was run as the Podman-stack persistence acceptance test. Expected behavior was for the temporary Forgejo endpoint to recover automatically. Actual behavior: `cloudflared.service` failed, and the temporary public health endpoint returned Cloudflare HTTP 530. Forgejo, PostgreSQL, both runners, Podman bridge forwarding, and a fresh Podman-network HTTP egress probe recovered.
 
 Cloudflared `2026.7.1` repeatedly failed DNS edge discovery with `lookup _v2-origintunneld._tcp.argotunnel.com on [::1]:53: connection refused`, then hit systemd's restart-start limit.
 

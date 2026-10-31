@@ -2,7 +2,7 @@
 
 ## Contract
 
-Validate the migrated Forgejo Actions capacity using repository `hnnazm/test` at `https://forgejo-migrate.example.com`:
+Validate the migrated Forgejo Actions capacity using repository `hnnazm/test` through the temporary validation hostname:
 
 1. Forgejo exposes exactly two active Podman-backed runner services.
 2. A workflow scheduled with `runs-on: docker` is accepted and executes.
@@ -48,7 +48,7 @@ Repairs:
 
 ### Reproduction
 
-Open `https://forgejo-migrate.example.com/hnnazm/test/actions/runs/9` while logged in. The passing workflow is `.forgejo/workflows/dind-smoke.yml` at test-repository commit `5a130b9fa87c6b9f145b2200697f3a53ddda0df1`.
+Open the `hnnazm/test` Actions run ID `9` through the configured Forgejo hostname while logged in. The passing workflow is `.forgejo/workflows/dind-smoke.yml` at test-repository commit `5a130b9fa87c6b9f145b2200697f3a53ddda0df1`.
 
 ### Verdict
 

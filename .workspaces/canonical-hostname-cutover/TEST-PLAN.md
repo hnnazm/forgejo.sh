@@ -1,7 +1,7 @@
 # Test Plan: Canonical hostname cutover
 
 - Under test: Podman Forgejo deployment after commit `76575a6`
-- Criteria source: post-cutover checks requested for `https://forgejo.example.com`.
+- Criteria source: post-cutover checks requested for the canonical Forgejo hostname.
 
 ## Strategy
 
@@ -11,9 +11,9 @@ Use the canonical HTTPS hostname for authenticated Forgejo API access, Git clone
 
 | # | Criterion | Test | Result |
 |---|---|---|---|
-| 1 | Canonical public Forgejo endpoint is healthy and authenticates an administrator. | Public `/api/healthz` passed; authenticated `GET /api/v1/user` through `forgejo.example.com` returned user `forgejo`. | PASS |
-| 2 | Git clients can clone and push through `forgejo.example.com`. | Cloned `hnnazm/test` over canonical HTTPS, pushed disposable branch `canonical-smoke-20261031155324`, then deleted it. | PASS |
-| 3 | The container registry authenticates and serves an image through `forgejo.example.com`. | Authenticated rootful Podman login, removed the local canonical tag, then pulled `forgejo.example.com/forgejo/registry-smoke:20261031135942`. | PASS |
+| 1 | Canonical public Forgejo endpoint is healthy and authenticates an administrator. | Public `/api/healthz` passed; authenticated `GET /api/v1/user` through the canonical hostname returned user `forgejo`. | PASS |
+| 2 | Git clients can clone and push through the canonical hostname. | Cloned `hnnazm/test` over canonical HTTPS, pushed disposable branch `canonical-smoke-20261031155324`, then deleted it. | PASS |
+| 3 | The container registry authenticates and serves an image through the canonical hostname. | Authenticated rootful Podman login, removed the local canonical tag, then pulled `forgejo.example.com/forgejo/registry-smoke:<tag>`. | PASS |
 | 4 | Forgejo Actions accepts and completes the existing Podman socket/DinD smoke workflow after canonical-hostname cutover. | Updated the workflow through the canonical API at commit `e1ff449fca4e5637c5b3b41f602026d8fc3ba723`; run ID `10` completed `success`. | PASS |
 
 ## Edge cases probed

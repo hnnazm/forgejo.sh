@@ -12,7 +12,6 @@ forgejo_version: "16.0.1"
 runner_version: "12.13.2"
 postgres_version: "17-alpine"
 cloudflared_version: "2026.7.1"
-forgejo_external_hostname: forgejo.example.com
 forgejo_instance_url: http://forgejo:3000
 forgejo_admin_username: forgejo
 forgejo_admin_email: admin@example.com

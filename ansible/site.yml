@@ -10,6 +10,7 @@
           - vault_forgejo_admin_password is defined
           - vault_forgejo_db_password is defined
           - vault_cloudflare_tunnel_token is defined
+          - vault_forgejo_external_hostname is defined
         fail_msg: >-
           Copy group_vars/all/vault.yml.example to vault.yml, set all secrets,
           encrypt it with ansible-vault, and supply its vault password.
